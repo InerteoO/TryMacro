@@ -1,0 +1,69 @@
+-- Nom de l'addon
+local AddonName = "MonHealAddon"
+
+-- Événement de raid
+local RaidEventFrame = CreateFrame("Frame", "RaidEventFrame")
+RaidEventFrame:RegisterEvent("RAID_ROSTER_UPDATE")
+RaidEventFrame:RegisterEvent("UNIT_HEALTH")
+
+-- Liste des sorts de soins possibles
+local HealSpells = {
+    "Soins inférieurs",
+    "Soins rapides",
+    -- Ajoutez d'autres sorts de soin au besoin
+}
+
+-- Fonction pour vérifier si un joueur a moins de 90% de points de vie
+local function ShouldHeal(unit)
+    local healthPercentage = UnitHealth(unit) / UnitHealthMax(unit) * 100
+    return healthPercentage < 90
+end
+
+-- Fonction pour cibler et lancer le sort de soin
+local function CastHeal(unit)
+    local spellIndex = math.random(1, #HealSpells)
+    local spellName = HealSpells[spellIndex]
+    SendChatMessage("Je lance " .. spellName .. " sur " .. UnitName(unit), "RAID")
+    CastSpellByName(spellName, unit)
+end
+
+-- Création du cadre de bouton
+local HealButton = CreateFrame("Button", "HealButton", UIParent, "UIPanelButtonTemplate")
+HealButton:SetPoint("CENTER", 0, -100)
+HealButton:SetText("Lancer Soins")
+HealButton:SetSize(120, 40)
+
+-- Fonction appelée lorsqu'on clique sur le bouton
+HealButton:SetScript("OnClick", function(self, button, down)
+    local raidSize = GetNumRaidMembers()
+
+    for i = 1, raidSize do
+        local unit = "raid" .. i
+
+        if UnitExists(unit) and UnitIsConnected(unit) and ShouldHeal(unit) then
+            CastHeal(unit)
+            return
+        end
+    end
+
+    print("Aucun joueur du raid ne nécessite de soin.")
+end)
+
+-- Gestionnaire d'événements
+RaidEventFrame:SetScript("OnEvent", function(self, event, ...)
+    if event == "RAID_ROSTER_UPDATE" or event == "UNIT_HEALTH" then
+        -- Mettez à jour l'état du bouton en fonction des conditions
+        local raidSize = GetNumRaidMembers()
+
+        for i = 1, raidSize do
+            local unit = "raid" .. i
+
+            if UnitExists(unit) and UnitIsConnected(unit) and ShouldHeal(unit) then
+                HealButton:Enable()
+                return
+            end
+        end
+
+        HealButton:Disable()
+    end
+end)
